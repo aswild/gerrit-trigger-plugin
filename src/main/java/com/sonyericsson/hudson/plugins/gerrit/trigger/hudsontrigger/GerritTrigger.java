@@ -63,6 +63,7 @@ import com.sonymobile.tools.gerrit.gerritevents.GerritQueryHandler;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Approval;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Provider;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
+import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeMerged; // WILD ADD
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.CommentAdded;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefUpdated;
@@ -2237,7 +2238,8 @@ public class GerritTrigger extends Trigger<Job> {
             }
             BuildCancellationPolicy buildCurrentPatchesOnly = serverConfig.getBuildCurrentPatchesOnly();
             if (!buildCurrentPatchesOnly.isEnabled()
-                    || (event instanceof ManualPatchsetCreated && !buildCurrentPatchesOnly.isAbortManualPatchsets())) {
+                    || (event instanceof ManualPatchsetCreated && !buildCurrentPatchesOnly.isAbortManualPatchsets())
+                    || (event instanceof ChangeMerged)) { // WILD: never skip ChangeMerged events
                 runningJobs.add(event);
                 return;
             }
