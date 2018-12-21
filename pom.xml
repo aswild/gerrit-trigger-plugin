@@ -334,6 +334,6 @@
         <connection>scm:git:ssh://github.com/jenkinsci/gerrit-trigger-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/gerrit-trigger-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/gerrit-trigger-plugin</url>
-        <tag>gerrit-trigger-2.28.0</tag>
+        <tag>gerrit-trigger-2.28.0-WILD</tag>
     </scm>
 </project>
