@@ -235,8 +235,9 @@
                             <value>33849</value>
                         </property>
                     </systemProperties>
-                    <argLine>-Xmx1024m -XX:MaxPermSize=380m</argLine>
-                    <reuseForks>false</reuseForks>
+                    <!-- https://stackoverflow.com/questions/53010200/maven-surefire-could-not-find-forkedbooter-class -->
+                    <argLine>-Xmx1024m -Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+                    <reuseForks>true</reuseForks>
                     <forkCount>${concurrency}</forkCount>
                 </configuration>
             </plugin>
