@@ -9,7 +9,7 @@
 
     <groupId>com.sonyericsson.hudson.plugins.gerrit</groupId>
     <artifactId>gerrit-trigger</artifactId>
-    <version>2.29.0-WILD</version>
+    <version>2.30.0-WILD</version>
     <packaging>hpi</packaging>
     <name>Gerrit Trigger</name>
     <description>Integrates with Gerrit code review.</description>
@@ -71,7 +71,7 @@
         <dependency>
             <groupId>com.sonymobile.tools.gerrit</groupId>
             <artifactId>gerrit-events</artifactId>
-            <version>2.13.0</version>
+            <version>2.16.0</version>
             <exclusions>
                 <exclusion>
                     <!-- json-lib-2.4-jenkins-2 is provided by core/stapler -->
@@ -412,6 +412,6 @@
         <connection>scm:git:ssh://github.com/jenkinsci/gerrit-trigger-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/gerrit-trigger-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/gerrit-trigger-plugin</url>
-        <tag>gerrit-trigger-2.29.0-r2-WILD</tag>
+        <tag>gerrit-trigger-2.30.0-WILD</tag>
     </scm>
 </project>
