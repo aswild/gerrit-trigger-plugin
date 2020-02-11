@@ -2305,7 +2305,7 @@ public class GerritTrigger extends Trigger<Job> {
                                 && buildCurrentPatchesOnly.isAbortManualPatchsets()
                                 || !(runningChangeBasedEvent instanceof ManualPatchsetCreated));
 
-                        if (!shouldCancelManual) {
+                        if (!abortBecauseOfTopic && !shouldCancelManual) {
                             continue;
                         }
 
