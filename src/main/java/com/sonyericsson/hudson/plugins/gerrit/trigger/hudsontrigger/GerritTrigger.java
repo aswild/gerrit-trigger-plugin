@@ -24,109 +24,68 @@
  */
 package com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger;
 
-import java.util.concurrent.CountDownLatch;
 import com.google.common.collect.Iterators;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer;
-
-import static com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer.ANY_SERVER;
-
-import com.sonyericsson.hudson.plugins.gerrit.trigger.Messages;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.VerdictCategory;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.config.Config;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.config.IGerritHudsonTriggerConfig;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.config.ReplicationConfig;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.dependency.DependencyQueueTaskDispatcher;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.events.ManualPatchsetCreated;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.gerritnotifier.ToGerritRunListener;
-
-import static com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl.getServerConfig;
-
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.actions.GerritTriggerInformationAction;
+import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.BuildCancellationPolicy;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.GerritProject;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.GerritSlave;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.SkipVote;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.TriggerContext;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.BuildCancellationPolicy;
-import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.data.CompareType;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.events.PluginCommentAddedContainsEvent;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.events.PluginCommentAddedEvent;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.events.PluginDraftPublishedEvent;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.events.PluginGerritEvent;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.events.PluginPatchsetCreatedEvent;
 import com.sonyericsson.hudson.plugins.gerrit.trigger.version.GerritVersionChecker;
-
-import static com.sonymobile.tools.gerrit.gerritevents.GerritDefaultValues.DEFAULT_BUILD_SCHEDULE_DELAY;
-import static jenkins.model.ParameterizedJobMixIn.ParameterizedJob;
-
 import com.sonymobile.tools.gerrit.gerritevents.GerritHandler;
 import com.sonymobile.tools.gerrit.gerritevents.GerritQueryHandler;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Approval;
 import com.sonymobile.tools.gerrit.gerritevents.dto.attr.Provider;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeBasedEvent;
-import com.sonymobile.tools.gerrit.gerritevents.dto.events.ChangeMerged; // WILD ADD
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.CommentAdded;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.GerritTriggeredEvent;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.RefUpdated;
 import com.sonymobile.tools.gerrit.gerritevents.dto.events.TopicChanged;
-import com.sonymobile.tools.gerrit.gerritevents.dto.rest.Notify;
-
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.Util;
-import hudson.model.AbstractProject;
 import hudson.model.Action;
-import hudson.model.AutoCompletionCandidates;
-import hudson.model.Cause;
-import hudson.model.Computer;
-import hudson.model.Executor;
-import hudson.model.Hudson;
-import hudson.model.Item;
-import hudson.model.ItemGroup;
 import hudson.model.Job;
 import hudson.model.ParametersAction;
-import hudson.model.Queue;
 import hudson.model.Run;
-import hudson.model.Result;
 import hudson.triggers.Trigger;
 import hudson.triggers.TriggerDescriptor;
-import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import hudson.util.ListBoxModel.Option;
-
-import java.io.IOException;
-import java.io.ObjectStreamException;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.text.MessageFormat;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.StringTokenizer;
-import java.util.regex.PatternSyntaxException;
-
 import jenkins.model.Jenkins;
 import jenkins.model.ParameterizedJobMixIn;
-
-import org.jenkinsci.Symbol;
-import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.ObjectStreamException;
+import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.regex.PatternSyntaxException;
+
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.GerritServer.ANY_SERVER;
+import static com.sonyericsson.hudson.plugins.gerrit.trigger.PluginImpl.getServerConfig;
+import static com.sonymobile.tools.gerrit.gerritevents.GerritDefaultValues.DEFAULT_BUILD_SCHEDULE_DELAY;
 
 /**
  * Triggers a build based on Gerrit events.
@@ -147,7 +106,7 @@ public class GerritTrigger extends Trigger<Job> {
     public static final String JOB_ABORT = GerritTrigger.class.getName() + "_job_abort";
 
     //! Association between patches and the jobs that we're running for them
-    private transient RunningJobs runningJobs = new RunningJobs();
+    private transient RunningJobs runningJobs = new RunningJobs(this, this.job);
     //! This latch will be used to signal that the project list is ready for use.
     //! For static configuration, this will be ready immediately.
     //! For dynamic configuration, this will be ready after the first time that
@@ -169,10 +128,13 @@ public class GerritTrigger extends Trigger<Job> {
     private Integer gerritBuildUnstableCodeReviewValue;
     private Integer gerritBuildNotBuiltVerifiedValue;
     private Integer gerritBuildNotBuiltCodeReviewValue;
+    private Integer gerritBuildAbortedVerifiedValue;
+    private Integer gerritBuildAbortedCodeReviewValue;
     private boolean silentMode;
     private String notificationLevel;
     private boolean silentStartMode;
     private boolean escapeQuotes;
+    private BuildCancellationPolicy buildCancellationPolicy;
     private GerritTriggerParameters.ParameterMode nameAndEmailParameterMode;
     private String dependencyJobsNames;
     private GerritTriggerParameters.ParameterMode commitMessageParameterMode;
@@ -183,6 +145,7 @@ public class GerritTrigger extends Trigger<Job> {
     private String buildSuccessfulMessage;
     private String buildUnstableMessage;
     private String buildNotBuiltMessage;
+    private String buildAbortedMessage;
     private String buildUnsuccessfulFilepath;
     private String customUrl;
     private String serverName;
@@ -203,11 +166,11 @@ public class GerritTrigger extends Trigger<Job> {
         this.gerritProjects = gerritProjects;
         this.gerritTriggerTimerTask = null;
         this.triggerInformationAction = new GerritTriggerInformationAction();
-        this.skipVote = new SkipVote(false, false, false, false);
+        this.skipVote = new SkipVote(false, false, false, false, false);
         this.escapeQuotes = true;
         this.serverName = ANY_SERVER;
         try {
-            DescriptorImpl descriptor = (DescriptorImpl)getDescriptor();
+            GerritTriggerDescriptor descriptor = (GerritTriggerDescriptor)getDescriptor();
             if (descriptor != null) {
                 ListBoxModel options = descriptor.doFillNotificationLevelItems(this.serverName);
                 if (!options.isEmpty()) {
@@ -231,6 +194,7 @@ public class GerritTrigger extends Trigger<Job> {
         this.buildUnstableMessage = "";
         this.buildFailureMessage = "";
         this.buildNotBuiltMessage = "";
+        this.buildAbortedMessage = "";
         this.buildUnsuccessfulFilepath = "";
         this.triggerConfigURL = "";
     }
@@ -293,16 +257,16 @@ public class GerritTrigger extends Trigger<Job> {
      */
     @Deprecated
     public GerritTrigger(List<GerritProject> gerritProjects, SkipVote skipVote, Integer gerritBuildStartedVerifiedValue,
-            Integer gerritBuildStartedCodeReviewValue, Integer gerritBuildSuccessfulVerifiedValue,
-            Integer gerritBuildSuccessfulCodeReviewValue, Integer gerritBuildFailedVerifiedValue,
-            Integer gerritBuildFailedCodeReviewValue, Integer gerritBuildUnstableVerifiedValue,
-            Integer gerritBuildUnstableCodeReviewValue, Integer gerritBuildNotBuiltVerifiedValue,
+                         Integer gerritBuildStartedCodeReviewValue, Integer gerritBuildSuccessfulVerifiedValue,
+                         Integer gerritBuildSuccessfulCodeReviewValue, Integer gerritBuildFailedVerifiedValue,
+                         Integer gerritBuildFailedCodeReviewValue, Integer gerritBuildUnstableVerifiedValue,
+                         Integer gerritBuildUnstableCodeReviewValue, Integer gerritBuildNotBuiltVerifiedValue,
             Integer gerritBuildNotBuiltCodeReviewValue, boolean silentMode, boolean silentStartMode,
             boolean escapeQuotes, boolean noNameAndEmailParameters, boolean readableMessage, String dependencyJobsNames,
-            String buildStartMessage, String buildSuccessfulMessage, String buildUnstableMessage,
+                         String buildStartMessage, String buildSuccessfulMessage, String buildUnstableMessage,
             String buildFailureMessage, String buildNotBuiltMessage, String buildUnsuccessfulFilepath, String customUrl,
-            String serverName, String gerritSlaveId, List<PluginGerritEvent> triggerOnEvents,
-            boolean dynamicTriggerConfiguration, String triggerConfigURL, String notificationLevel) {
+                         String serverName, String gerritSlaveId, List<PluginGerritEvent> triggerOnEvents,
+                         boolean dynamicTriggerConfiguration, String triggerConfigURL, String notificationLevel) {
         this.gerritProjects = gerritProjects;
         this.skipVote = skipVote;
         this.gerritBuildStartedVerifiedValue = gerritBuildStartedVerifiedValue;
@@ -488,7 +452,8 @@ public class GerritTrigger extends Trigger<Job> {
     public void setServerName(String name) {
         this.serverName = name;
         if (this.notificationLevel == null) {
-            ListBoxModel options = ((DescriptorImpl)getDescriptor()).doFillNotificationLevelItems(this.serverName);
+            ListBoxModel options =
+                ((GerritTriggerDescriptor)getDescriptor()).doFillNotificationLevelItems(this.serverName);
             if (!options.isEmpty()) {
                 notificationLevel = options.get(0).value;
             }
@@ -525,10 +490,8 @@ public class GerritTrigger extends Trigger<Job> {
         PluginImpl plugin = PluginImpl.getInstance();
         if (plugin != null) {
             GerritHandler handler = plugin.getHandler();
-            if (handler != null) {
-                handler.removeListener(new EventListener(oldFullName));
-                handler.addListener(createListener());
-            }
+            handler.removeListener(new EventListener(oldFullName));
+            handler.addListener(createListener());
         }
     }
 
@@ -570,12 +533,7 @@ public class GerritTrigger extends Trigger<Job> {
         PluginImpl plugin = PluginImpl.getInstance();
         if (plugin != null) {
             GerritHandler handler = plugin.getHandler();
-            if (handler != null) {
-                handler.addListener(createListener(project));
-            } else {
-                logger.warn("The plugin has no handler instance (BUG)! Project {} will not be triggered!",
-                        project.getFullDisplayName());
-            }
+            handler.addListener(createListener(project));
         } else {
             logger.warn("The plugin instance could not be found! Project {} will not be triggered!",
                     project.getFullDisplayName());
@@ -777,11 +735,14 @@ public class GerritTrigger extends Trigger<Job> {
     /**
      * Gives you {@link #runningJobs}. It makes sure that the reference is not null.
      *
+     * @param job - job that calling event trigger is attached to
      * @return the store of running jobs.
      */
-    /*package*/ synchronized RunningJobs getRunningJobs() {
+    /*package*/ synchronized RunningJobs getRunningJobs(Job job) {
         if (runningJobs == null) {
-            runningJobs = new RunningJobs();
+            runningJobs = new RunningJobs(this, this.job);
+        } else {
+            runningJobs.setJob(job);
         }
         return runningJobs;
     }
@@ -795,8 +756,9 @@ public class GerritTrigger extends Trigger<Job> {
     public void notifyBuildEnded(GerritTriggeredEvent event) {
         if (event instanceof ChangeBasedEvent) {
             IGerritHudsonTriggerConfig serverConfig = getServerConfig(event);
-            if (serverConfig != null && serverConfig.isGerritBuildCurrentPatchesOnly()) {
-                getRunningJobs().remove((ChangeBasedEvent)event);
+            if ((serverConfig != null && serverConfig.isGerritBuildCurrentPatchesOnly())
+                    || (this.getBuildCancellationPolicy() != null && this.getBuildCancellationPolicy().isEnabled())) {
+                getRunningJobs(this.job).remove((ChangeBasedEvent)event);
             }
         }
     }
@@ -1331,6 +1293,46 @@ public class GerritTrigger extends Trigger<Job> {
     }
 
     /**
+     * Job specific Gerrit code review vote when a build is aborted, null means that the global value should be used.
+     *
+     * @return the vote value.
+     */
+    public Integer getGerritBuildAbortedCodeReviewValue() {
+        return gerritBuildAbortedCodeReviewValue;
+    }
+
+    /**
+     * Job specific Gerrit code review vote when a build is aborted, providing null means that the global value should be
+     * used.
+     *
+     * @param gerritBuildAbortedCodeReviewValue the vote value.
+     */
+    @DataBoundSetter
+    public void setGerritBuildAbortedCodeReviewValue(Integer gerritBuildAbortedCodeReviewValue) {
+        this.gerritBuildAbortedCodeReviewValue = gerritBuildAbortedCodeReviewValue;
+    }
+
+    /**
+     * Job specific Gerrit verified vote when a build is aborted, null means that the global value should be used.
+     *
+     * @return the vote value.
+     */
+    public Integer getGerritBuildAbortedVerifiedValue() {
+        return gerritBuildAbortedVerifiedValue;
+    }
+
+    /**
+     * Job specific Gerrit verified vote when a build is aborted, providing null means that the global value should be
+     * used.
+     *
+     * @param gerritBuildAbortedVerifiedValue the vote value.
+     */
+    @DataBoundSetter
+    public void setGerritBuildAbortedVerifiedValue(Integer gerritBuildAbortedVerifiedValue) {
+        this.gerritBuildAbortedVerifiedValue = gerritBuildAbortedVerifiedValue;
+    }
+
+    /**
      * Sets the path to a file that contains the unsuccessful Gerrit comment message.
      * Filename to retrieve Gerrit comment message from, in the case of an unsuccessful build.
      *
@@ -1602,6 +1604,31 @@ public class GerritTrigger extends Trigger<Job> {
     }
 
     /**
+     * @return the buildCurrentPatchesOnly
+     */
+    public BuildCancellationPolicy getBuildCancellationPolicy() {
+        return buildCancellationPolicy;
+    }
+
+    /**
+     * The build cancellation policy regarding building current patch sets only.
+     * @return the policy
+     */
+    public boolean isBuildCurrentPatchesOnly() {
+        return buildCancellationPolicy != null && buildCancellationPolicy.isEnabled();
+    }
+
+    /**
+     * The build cancellation policy regarding building current patch sets only.
+     *
+     * @param buildCancellationPolicy the policy
+     */
+    @DataBoundSetter
+    public void setBuildCancellationPolicy(final BuildCancellationPolicy buildCancellationPolicy) {
+        this.buildCancellationPolicy = buildCancellationPolicy;
+    }
+
+    /**
      * The message to show users when a build succeeds, if custom messages are enabled.
      *
      * @return The build successful message
@@ -1674,6 +1701,25 @@ public class GerritTrigger extends Trigger<Job> {
     @DataBoundSetter
     public void setBuildNotBuiltMessage(String buildNotBuiltMessage) {
         this.buildNotBuiltMessage = buildNotBuiltMessage;
+    }
+
+    /**
+     * The message to show users when a build is aborted, if custom messages are enabled.
+     *
+     * @return The build aborted message
+     */
+    public String getBuildAbortedMessage() {
+        return buildAbortedMessage;
+    }
+
+    /**
+     * Message to write to Gerrit when a build is aborted.
+     *
+     * @param buildAbortedMessage The build aborted message
+     */
+    @DataBoundSetter
+    public void setBuildAbortedMessage(String buildAbortedMessage) {
+        this.buildAbortedMessage = buildAbortedMessage;
     }
 
     /**
@@ -1937,501 +1983,9 @@ public class GerritTrigger extends Trigger<Job> {
 
     @Override
     public TriggerDescriptor getDescriptor() {
-        return Jenkins.getInstance().getDescriptorByType(DescriptorImpl.class);
+        return Jenkins.getInstance().getDescriptorByType(GerritTriggerDescriptor.class);
     }
 
-    /**
-     * The Descriptor for the Trigger.
-     */
-    @Extension
-    @Symbol("gerrit")
-    public static final class DescriptorImpl extends TriggerDescriptor {
-
-        /**
-         * Checks if the provided job type can support {@link GerritTrigger#getBuildUnsuccessfulFilepath()}.
-         * I.e. if the job is an {@link AbstractProject}.
-         *
-         * @param job the job to check.
-         * @return true if so.
-         */
-        public boolean isUnsuccessfulMessageFileSupported(Job job) {
-            return job instanceof AbstractProject;
-        }
-
-        /**
-         * Checks that the provided parameter is an empty string or an integer.
-         *
-         * @param value the value.
-         * @return {@link FormValidation#validatePositiveInteger(String)}
-         */
-        public FormValidation doEmptyOrIntegerCheck(
-                @QueryParameter("value")
-                final String value) {
-            if (value == null || value.length() <= 0) {
-                return FormValidation.ok();
-            } else {
-                try {
-                    Integer.parseInt(value);
-                    return FormValidation.ok();
-                } catch (NumberFormatException e) {
-                    return FormValidation.error(Messages.NotANumber());
-                }
-            }
-        }
-
-        /**
-         * Provides auto-completion candidates for dependency jobs names.
-         *
-         * @param value the value.
-         * @param self the current instance.
-         * @param container the container.
-         * @return {@link AutoCompletionCandidates}
-         */
-        public AutoCompletionCandidates doAutoCompleteDependencyJobsNames(@QueryParameter String value,
-                @AncestorInPath Item self, @AncestorInPath ItemGroup container) {
-            return AutoCompletionCandidates.ofJobNames(Job.class, value, self, container);
-        }
-
-        /**
-         * Validates that the dependency jobs are legitimate and do not create cycles.
-         *
-         * @param value the string value.
-         * @param project the current project.
-         * @return {@link FormValidation}
-         */
-        public FormValidation doCheckDependencyJobsNames(@AncestorInPath Item project, @QueryParameter String value) {
-            StringTokenizer tokens = new StringTokenizer(Util.fixNull(value), ",");
-            // Check that all jobs are legit, actual projects.
-            while (tokens.hasMoreTokens()) {
-                String projectName = tokens.nextToken().trim();
-                if (!projectName.equals("")) {
-                    Jenkins jenkins = Jenkins.getInstance();
-                    assert jenkins != null;
-                    Item item = jenkins.getItem(projectName, project, Item.class);
-                    if ((item == null) || !(item instanceof Job)) {
-                        AbstractProject nearest = AbstractProject.findNearest(projectName);
-                        String path = "<null>";
-                        if (nearest != null) {
-                            path = nearest.getFullName();
-                        }
-                        return FormValidation.error(
-                                Messages.NoSuchJobExists(
-                                        projectName,
-                                        path));
-                    }
-                }
-            }
-            //Check there are no cycles in the dependencies, by exploring all dependencies recursively
-            //Only way of creating a cycle is if this project is in the dependencies somewhere.
-            Set<Job> explored = new HashSet<Job>();
-            List<Job> directDependencies = DependencyQueueTaskDispatcher.getProjectsFromString(value,
-                    project);
-            if (directDependencies == null) {
-                // no dependencies
-                return FormValidation.ok();
-            }
-            for (Job directDependency : directDependencies) {
-                if (directDependency.getFullName().equals(project.getFullName())) {
-                    return FormValidation.error(Messages.CannotAddSelfAsDependency());
-                }
-                java.util.Queue<Job> toExplore = new LinkedList<Job>();
-                toExplore.add(directDependency);
-                while (toExplore.size() > 0) {
-                    Job currentlyExploring = toExplore.remove();
-                    explored.add(currentlyExploring);
-                    GerritTrigger currentTrigger = getTrigger(currentlyExploring);
-                    if (currentTrigger == null) {
-                        continue;
-                    }
-                    String currentDependenciesString = getTrigger(currentlyExploring).getDependencyJobsNames();
-                    List<Job> currentDependencies = DependencyQueueTaskDispatcher.getProjectsFromString(
-                            currentDependenciesString, project);
-                    if (currentDependencies == null) {
-                        continue;
-                    }
-                    for (Job dependency : currentDependencies) {
-                        if (dependency.getFullName().equals(project.getFullName())) {
-                            return FormValidation.error(Messages.AddingDependentProjectWouldCreateLoop(
-                                    directDependency.getFullName(), currentlyExploring.getFullName()));
-                        }
-                        if (!explored.contains(dependency)) {
-                            toExplore.add(dependency);
-                        }
-                    }
-                }
-            }
-            return FormValidation.ok();
-        }
-
-        /**
-         * Fill the server dropdown with the list of servers configured globally.
-         *
-         * @return list of servers.
-         */
-        public ListBoxModel doFillServerNameItems() {
-            ListBoxModel items = new ListBoxModel();
-            items.add(Messages.AnyServer(), ANY_SERVER);
-            List<String> serverNames = PluginImpl.getServerNames_();
-            for (String s : serverNames) {
-                items.add(s);
-            }
-            return items;
-        }
-
-        /**
-         * Whether slave selection in jobs should be allowed.
-         * If so, the user will see one more dropdown on the job config page, right under server selection dropdown.
-         * @return true if so.
-         */
-        public boolean isSlaveSelectionAllowedInJobs() {
-            //since we cannot create/remove drop down when the server is selected,
-            //as soon as one of the server allow slave selection, we must display it.
-            for (GerritServer server : PluginImpl.getServers_()) {
-                ReplicationConfig replicationConfig = server.getConfig().getReplicationConfig();
-                if (replicationConfig != null && replicationConfig.isEnableSlaveSelectionInJobs()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Fill the Gerrit slave dropdown with the list of slaves configured with the selected server.
-         * Expected to be called only when slave config is enabled at job level.
-         *
-         * @param serverName the name of the selected server.
-         * @return list of slaves.
-         */
-        public ListBoxModel doFillGerritSlaveIdItems(@QueryParameter("serverName") final String serverName) {
-            ListBoxModel items = new ListBoxModel();
-            if (ANY_SERVER.equals(serverName)) {
-                items.add(Messages.SlaveSelectionNotAllowedAnyServer(Messages.AnyServer()), "");
-                return items;
-            }
-            GerritServer server = PluginImpl.getServer_(serverName);
-            if (server == null) {
-                logger.warn(Messages.CouldNotFindServer(serverName));
-                items.add(Messages.CouldNotFindServer(serverName), "");
-                return items;
-            }
-            ReplicationConfig replicationConfig = server.getConfig().getReplicationConfig();
-            if (replicationConfig == null) {
-                items.add(Messages.ReplicationNotConfigured(), "");
-                return items;
-            } else if (!replicationConfig.isEnableReplication()) {
-                items.add(Messages.ReplicationNotConfigured(), "");
-                return items;
-            } else if (!replicationConfig.isEnableSlaveSelectionInJobs()) {
-                items.add(Messages.SlaveSelectionInJobsDisabled(), "");
-                return items;
-            }
-            for (GerritSlave slave : replicationConfig.getGerritSlaves()) {
-                //if GerritTrigger.gerritSlaveId is configured, the selected value will be the good one because of
-                //the stapler/jelly magic. The problem is when job was not saved since replication was configured,
-                //we want the selected slave to be the default slave defined at admin level but I did not find a way
-                //to do this. Jelly support default value returned by a descriptor method but I did not find a way to
-                //pass the selected server to this method.
-                //To work around the issue, we always put the default slave first in the list.
-                if (slave.getId().equals(replicationConfig.getDefaultSlaveId())) {
-                    items.add(0, new ListBoxModel.Option(slave.getName(), slave.getId()));
-                } else {
-                    items.add(slave.getName(), slave.getId());
-                }
-            }
-            return items;
-        }
-
-        /**
-         * Checks that the provided parameter is nonempty and a valid URL.
-         *
-         * @param value the value.
-         * @return {@link hudson.util.FormValidation#ok()}
-         */
-        public FormValidation doUrlCheck(
-                @QueryParameter("value")
-                final String value) {
-            if (value == null || value.isEmpty()) {
-                return FormValidation.error(Messages.EmptyError());
-            }
-            try {
-                URL url = new URL(value); // Check for protocol errors
-                url.toURI(); // Perform some extra checking
-                return FormValidation.ok();
-            } catch (java.net.MalformedURLException e) {
-                return FormValidation.error(Messages.BadUrlError());
-            } catch (java.net.URISyntaxException e) {
-                return FormValidation.error(Messages.BadUrlError());
-            }
-        }
-
-        /**
-         * Fill the dropdown for notification levels.
-         * @param serverName the server name.
-         * @return the values.
-         */
-        public ListBoxModel doFillNotificationLevelItems(@QueryParameter("serverName") final String serverName) {
-            Map<Notify, String> levelTextsById = GerritServer.notificationLevelTextsById();
-            ListBoxModel items = new ListBoxModel(levelTextsById.size() + 1);
-            items.add(getOptionForNotificationLevelDefault(serverName, levelTextsById));
-            for (Entry<Notify, String> level : levelTextsById.entrySet()) {
-                items.add(new Option(level.getValue(), level.getKey().toString()));
-            }
-            return items;
-        }
-
-        /**
-         * Reads the default option for the notification level, usually from the server config.
-         *
-         * @param serverName the server name.
-         * @param levelTextsById a map with the localized level texts.
-         * @return the default option.
-         */
-        private static Option getOptionForNotificationLevelDefault(
-                final String serverName, Map<Notify, String> levelTextsById) {
-            if (ANY_SERVER.equals(serverName)) {
-                // We do not know which server is selected, so we cannot tell the
-                // currently active default value.  It might be the global default,
-                // but also a different value.
-                return new Option(Messages.NotificationLevel_DefaultValue(), "");
-            } else if (serverName != null) {
-                GerritServer server = PluginImpl.getServer_(serverName);
-                if (server != null) {
-                    Notify level = server.getConfig().getNotificationLevel();
-                    if (level != null) {
-                        String levelText = levelTextsById.get(level);
-                        if (levelText == null) { // new/unknown value
-                            levelText = level.toString();
-                        }
-                        return new Option(Messages.NotificationLevel_DefaultValueFromServer(levelText), "");
-                    }
-                }
-            }
-
-            // fall back to global default
-            String defaultText = levelTextsById.get(Config.DEFAULT_NOTIFICATION_LEVEL);
-            return new Option(Messages.NotificationLevel_DefaultValueFromServer(defaultText), "");
-        }
-
-        /**
-         * Default Constructor.
-         */
-        public DescriptorImpl() {
-            super(GerritTrigger.class);
-        }
-
-        @Override
-        public boolean isApplicable(Item item) {
-            return (item instanceof ParameterizedJob);
-        }
-
-        @Override
-        public String getDisplayName() {
-            return Messages.TriggerDisplayName();
-        }
-
-        @Override
-        public String getHelpFile() {
-            return "/plugin/gerrit-trigger/help-whatIsGerritTrigger.html";
-        }
-
-        /**
-         * A list of CompareTypes for the UI.
-         *
-         * @return A list of CompareTypes
-         */
-        public CompareType[] getCompareTypes() {
-            return CompareType.values();
-        }
-
-        /**
-         * Getter for the list of PluginGerritEventDescriptors.
-         * @return the list.
-         */
-        public List<PluginGerritEvent.PluginGerritEventDescriptor> getGerritEventDescriptors() {
-            ExtensionList<PluginGerritEvent.PluginGerritEventDescriptor> extensionList =
-                    Hudson.getInstance().getExtensionList(PluginGerritEvent.PluginGerritEventDescriptor.class);
-            return extensionList;
-        }
-    }
-
-    /**
-     * Class for maintaining and synchronizing the runningJobs info.
-     * Association between patches and the jobs that we're running for them.
-     */
-    public class RunningJobs {
-        private final Set<GerritTriggeredEvent> runningJobs =
-                Collections.synchronizedSet(new HashSet<GerritTriggeredEvent>());
-
-        /**
-         * Does the needful after a build has been scheduled.
-         * I.e. cancelling the old build if configured to do so and removing and storing any references.
-         *
-         * @param event the event triggering a new build.
-         */
-        public void scheduled(ChangeBasedEvent event) {
-            IGerritHudsonTriggerConfig serverConfig = getServerConfig(event);
-            if (serverConfig == null) {
-                runningJobs.add(event);
-                return;
-            }
-            BuildCancellationPolicy buildCurrentPatchesOnly = serverConfig.getBuildCurrentPatchesOnly();
-            if (!buildCurrentPatchesOnly.isEnabled()
-                    || (event instanceof ManualPatchsetCreated && !buildCurrentPatchesOnly.isAbortManualPatchsets())
-                    || (event instanceof ChangeMerged)) { // WILD: never skip ChangeMerged events
-                runningJobs.add(event);
-                return;
-            }
-
-            List<ChangeBasedEvent> outdatedEvents = new ArrayList<ChangeBasedEvent>();
-            synchronized (runningJobs) {
-                Iterator<GerritTriggeredEvent> it = runningJobs.iterator();
-                while (it.hasNext()) {
-                    GerritTriggeredEvent runningEvent = it.next();
-                    // Find all entries in runningJobs with the same Change #.
-                    // Optionally, ignore all manual patchsets and don't cancel builds due to
-                    // a retrigger of an older build.
-                    if (runningEvent instanceof ChangeBasedEvent) {
-                        ChangeBasedEvent runningChangeBasedEvent = ((ChangeBasedEvent)runningEvent);
-
-                        boolean abortBecauseOfTopic = abortBecauseOfTopic(event,
-                                buildCurrentPatchesOnly,
-                                runningChangeBasedEvent);
-
-                        if (!abortBecauseOfTopic && !runningChangeBasedEvent.getChange().equals(event.getChange())) {
-                            continue;
-                        }
-
-                        boolean shouldCancelManual = (runningChangeBasedEvent instanceof ManualPatchsetCreated
-                                && buildCurrentPatchesOnly.isAbortManualPatchsets()
-                                || !(runningChangeBasedEvent instanceof ManualPatchsetCreated));
-
-                        if (!abortBecauseOfTopic && !shouldCancelManual) {
-                            continue;
-                        }
-
-                        boolean shouldCancelPatchsetNumber = buildCurrentPatchesOnly.isAbortNewPatchsets()
-                                || Integer.parseInt(runningChangeBasedEvent.getPatchSet().getNumber())
-                                < Integer.parseInt(event.getPatchSet().getNumber());
-
-                        if (!abortBecauseOfTopic && !shouldCancelPatchsetNumber) {
-                            continue;
-                        }
-
-                        outdatedEvents.add(runningChangeBasedEvent);
-                        it.remove();
-                    }
-                }
-                // add our new job
-                runningJobs.add(event);
-            }
-
-            // This step can't be done under the lock, because cancelling the jobs needs a lock on higher level.
-            for (ChangeBasedEvent outdatedEvent : outdatedEvents) {
-                logger.debug("Cancelling build for " + outdatedEvent);
-                try {
-                    cancelJob(outdatedEvent);
-                } catch (Exception e) {
-                    // Ignore any problems with canceling the job.
-                    logger.error("Error canceling job", e);
-                }
-            }
-        }
-
-        /**
-         * Tries to cancel any job, which was triggered by the given change event.
-         * <p>
-         * Since the event is always noted in the build cause, it is easy to
-         * identify which specific builds shall be cancelled, without having
-         * to dig down into the parameters, which might've been mutated by the
-         * build while it was running. (This was the previous implementation)
-         * <p>
-         * We look in both the build queue and currently executing jobs.
-         * This extra work is required due to race conditions when calling
-         * Future.cancel() - see
-         * https://issues.jenkins-ci.org/browse/JENKINS-13829
-         *
-         * @param event
-         *            The event that originally triggered the build.
-         */
-        private void cancelJob(GerritTriggeredEvent event) {
-            logger.debug("Cancelling build for " + event);
-            try {
-                if (!(job instanceof Queue.Task)) {
-                    logger.error("Error canceling job. The job is not of type Task. Job name: " + job.getName());
-                    return;
-                }
-
-                // Remove any jobs in the build queue.
-                List<hudson.model.Queue.Item> itemsInQueue = Queue.getInstance().getItems((Queue.Task)job);
-                for (hudson.model.Queue.Item item : itemsInQueue) {
-                    if (checkCausedByGerrit(event, item.getCauses())) {
-                        Queue.getInstance().cancel(item);
-                    }
-                }
-
-                String workaround = System.getProperty(JOB_ABORT);
-                if ((workaround != null) && workaround.equals("false")) {
-                    return;
-                }
-
-                // Interrupt any currently running jobs.
-                Jenkins jenkins = Jenkins.getInstance();
-                assert jenkins != null;
-                for (Computer c : jenkins.getComputers()) {
-                    List<Executor> executors = new ArrayList<Executor>();
-                    executors.addAll(c.getOneOffExecutors());
-                    executors.addAll(c.getExecutors());
-                    for (Executor e : executors) {
-                        Queue.Executable currentExecutable = e.getCurrentExecutable();
-                        if (currentExecutable != null && currentExecutable instanceof Run<?, ?>) {
-                            Run<?, ?> run = (Run<?, ?>)currentExecutable;
-                            if (checkCausedByGerrit(event, run.getCauses())) {
-                                e.interrupt(
-                                        Result.ABORTED,
-                                        new NewPatchSetInterruption()
-                                );
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                // Ignore any problems with canceling the job.
-                logger.error("Error canceling job", e);
-            }
-        }
-
-        /**
-         * Checks if any of the given causes references the given event.
-         *
-         * @param event The event to check for. Checks for <i>identity</i>, not
-         * <i>equality</i>!
-         * @param causes the list of causes. Only {@link GerritCause}s are considered.
-         * @return true if the list of causes contains a {@link GerritCause}.
-         */
-        private boolean checkCausedByGerrit(GerritTriggeredEvent event, Collection<Cause> causes) {
-            for (Cause c : causes) {
-                if (!(c instanceof GerritCause)) {
-                    continue;
-                }
-                GerritCause gc = (GerritCause)c;
-                if (gc.getEvent() == event) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /**
-         * Removes any reference to the current build for this change.
-         *
-         * @param event the event which started the build we want to remove.
-         * @return true if event was still running.
-         */
-        public boolean remove(ChangeBasedEvent event) {
-            logger.debug("Removing future job " + event.getPatchSet().getNumber());
-            return runningJobs.remove(event);
-        }
-    }
 
     /**
      * Checks that execution must be aborted because of topic.
@@ -2440,7 +1994,7 @@ public class GerritTrigger extends Trigger<Job> {
      * @param runningChange the ongoing change.
      * @return true if so.
      */
-    private boolean abortBecauseOfTopic(ChangeBasedEvent event,
+    protected boolean abortBecauseOfTopic(ChangeBasedEvent event,
                                         BuildCancellationPolicy policy,
                                         ChangeBasedEvent runningChange) {
         String topicName = event.getChange().getTopic();

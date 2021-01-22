@@ -9,7 +9,7 @@
 
     <groupId>com.sonyericsson.hudson.plugins.gerrit</groupId>
     <artifactId>gerrit-trigger</artifactId>
-    <version>2.30.5-WILD</version>
+    <version>2.32.0-WILD</version>
     <packaging>hpi</packaging>
     <name>Gerrit Trigger</name>
     <description>Integrates with Gerrit code review.</description>
@@ -71,7 +71,7 @@
         <dependency>
             <groupId>com.sonymobile.tools.gerrit</groupId>
             <artifactId>gerrit-events</artifactId>
-            <version>2.16.0</version>
+            <version>2.18.1</version>
             <exclusions>
                 <exclusion>
                     <!-- json-lib-2.4-jenkins-2 is provided by core/stapler -->
@@ -248,17 +248,6 @@
             <version>2.3</version>
             <scope>test</scope>
         </dependency>
-        <!-- <dependency>
-            <groupId>org.apache.sshd</groupId>
-            <artifactId>sshd-core</artifactId>
-            <version>1.7.0</version>
-            <scope>test</scope>
-        </dependency> -->
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>11.0.1</version>
-        </dependency>
         <dependency>
             <groupId>com.github.tomakehurst</groupId>
             <artifactId>wiremock</artifactId>
@@ -412,6 +401,6 @@
         <connection>scm:git:ssh://github.com/jenkinsci/gerrit-trigger-plugin.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/gerrit-trigger-plugin.git</developerConnection>
         <url>https://github.com/jenkinsci/gerrit-trigger-plugin</url>
-        <tag>gerrit-trigger-2.30.5-WILD</tag>
+        <tag>gerrit-trigger-2.32.0-WILD</tag>
     </scm>
 </project>
